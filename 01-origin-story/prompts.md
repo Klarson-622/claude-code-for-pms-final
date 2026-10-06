@@ -33,3 +33,39 @@ What defect fixes pushed with 4.2
 ### 3.
 
 provide a list of top 5 impacts following the 4.2 release
+
+### 4.
+
+Is there anything missing that could be important context to consider?
+
+### 5.
+
+what ticket bodeies and callout areas
+
+### 6.
+
+How can we close the gaps in supply and lock down availability during specific time periods, so there is at least one superhero on-call per high call volume area?
+
+### 7.
+
+Who received pings for old town callouts
+
+### 8.
+
+Read everything in 00-rook/feedback/interviews/. These are four conversations with the people who run the console for our responders. Tell me what they're unhappy about, group it, tell me how many of the four raised each thing, and quote one line for each so I can hear how they actually said it.
+
+### 9.
+
+what are the data sources do we have or need to substantiate these themes in the interviews?
+
+### 10.
+
+Anything of importance mentioned during the interviews
+
+### 11.
+
+Any information that shared in the interviews was not shared in this?
+
+### 12.
+
+Did anyone say something that nobody else mentioned?
