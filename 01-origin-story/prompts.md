@@ -24,6 +24,12 @@ prompt library built from your own questions.
 
 ### 1.
 
+What's contradictory or missing, not just in the company documents, but across everything in 00-rook?
+
 ### 2.
 
+What defect fixes pushed with 4.2
+
 ### 3.
+
+provide a list of top 5 impacts following the 4.2 release
