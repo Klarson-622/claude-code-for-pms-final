@@ -15,6 +15,12 @@ prompt library built from your own questions.
 
 ### 1.
 
+run skill.md on brief
+
 ### 2.
 
+run skill.md on this url: https://github.com/suzmagoon/claude-code-for-pms-final/blob/main/05-super-speed/brief.md
+
 ### 3.
+
+Schedule review-checklist to run every Monday morning, and let me know what it finds. Nothing needs to be ready for it to fire today. I'm setting the habit, not waiting on the result.
