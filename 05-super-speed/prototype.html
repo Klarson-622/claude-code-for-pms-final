@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rook Dispatch console: quiet responders (prototype)</title>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;font:15px/1.45 Arial,sans-serif;color:#1d2530;background:#f3f5f8}
+  .top{background:#1d2530;color:#fff;display:flex;align-items:center;gap:22px;padding:0 20px;height:48px}
+  .top b{font-size:17px;margin-right:10px}
+  .top a{color:#b9c4d6;cursor:pointer;padding:14px 0;border-bottom:3px solid transparent;font-size:14px}
+  .top a.on{color:#fff;border-color:#f0b429}
+  .top .sp{flex:1}
+  .mock{font-size:12px;background:#f0b429;color:#1d2530;padding:2px 9px;border-radius:10px}
+  .who{font-size:13px;color:#b9c4d6}
+  .page{padding:16px 20px;max-width:1180px;margin:0 auto}
+  .hide{display:none}
+  .banner{background:#fff4e0;border:1px solid #f0b429;border-radius:8px;padding:10px 14px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+  .cols{display:flex;gap:16px;align-items:flex-start}
+  .main{flex:1.15;min-width:0} .side{flex:1;min-width:0}
+  table{width:100%;border-collapse:collapse;background:#fff;border:1px solid #d6dbe3;border-radius:8px;overflow:hidden}
+  th,td{text-align:left;padding:9px 12px;border-bottom:1px solid #eceff3;font-size:14px}
+  th{background:#e9edf3;font-size:12px;text-transform:uppercase;letter-spacing:.04em}
+  tr.row{cursor:pointer} tr.row:hover{background:#f6f9ff} tr.sel{background:#e8f0ff!important}
+  .pill{display:inline-block;padding:2px 9px;border-radius:10px;font-size:12px;font-weight:bold;white-space:nowrap}
+  .quiet{background:#fde2e0;color:#a4261b} .ok{background:#dff3e4;color:#1b6b34} .busy{background:#e3e9f9;color:#2b4a9a} .away{background:#e9edf3;color:#4a5563} .fresh{background:#fff0c2;color:#7a5a00}
+  button{font:inherit;padding:7px 13px;border-radius:6px;border:1px solid #1d5fd1;background:#1d5fd1;color:#fff;cursor:pointer}
+  button.ghost{background:#fff;color:#1d5fd1} button:disabled{opacity:.45;cursor:default}
+  .card{background:#fff;border:1px solid #d6dbe3;border-radius:8px;padding:16px;margin-bottom:14px}
+  h2{margin:0 0 2px;font-size:19px} h3{margin:0 0 8px;font-size:15px}
+  .sub{color:#5b6674;font-size:13px;margin-bottom:10px}
+  .bars{display:flex;align-items:flex-end;gap:8px;height:96px;margin:8px 0 2px}
+  .bar{flex:1;background:#8fb0ea;text-align:center;font-size:11px;min-height:3px}
+  .bar.post{background:#e58a82}
+  .lbls{display:flex;gap:8px;font-size:11px;color:#5b6674} .lbls span{flex:1;text-align:center}
+  .box{background:#f3f5f8;border-radius:6px;padding:10px 12px;margin:10px 0;font-size:14px}
+  .good{background:#dff3e4;border:1px solid #9fd5ae}
+  .note{font-size:12px;color:#5b6674;margin-top:10px}
+  .empty{color:#5b6674;text-align:center;padding:70px 10px}
+  .steps{display:flex;gap:6px;margin:10px 0}
+  .step{flex:1;border:1px solid #d6dbe3;border-radius:6px;padding:7px;font-size:12px;text-align:center;background:#fff}
+  .step.live{background:#e8f0ff;border-color:#1d5fd1;font-weight:bold}
+  .step.won{background:#dff3e4;border-color:#9fd5ae}
+  .log li{margin-bottom:6px;font-size:13px}
+  .toast{position:fixed;bottom:20px;right:20px;background:#1d2530;color:#fff;padding:11px 16px;border-radius:8px;opacity:0;transition:opacity .25s;pointer-events:none;max-width:340px}
+  .toast.on{opacity:1}
+  .callout{display:flex;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid #eceff3;font-size:14px}
+</style>
+</head>
+<body>
+<div class="top">
+  <b>Rook Dispatch</b>
+  <a data-tab="callouts">Callouts</a>
+  <a data-tab="responders" class="on">Responders <span id="navBadge" class="pill quiet" style="margin-left:4px">4</span></a>
+  <a data-tab="coverage">Coverage</a>
+  <a data-tab="alert">Weekly alert</a>
+  <a data-tab="brief">The brief</a>
+  <span class="sp"></span>
+  <span class="mock">PROTOTYPE &middot; illustrative data</span>
+  <span class="who">Signed in as Kip (handler)</span>
+</div>
+
+<div class="page">
+
+  <!-- RESPONDERS -->
+  <section id="tab-responders">
+    <div class="banner" id="banner">
+      <span><b id="qcount">4 of your area's responders</b> have gone quiet since 12 Aug: marked available, but offered far fewer callouts than usual.</span>
+      <span style="white-space:nowrap">
+        <select id="areaSel" style="font:inherit;padding:6px 8px;border-radius:6px;border:1px solid #1d5fd1;margin-right:6px"><option value="">All areas</option></select>
+        <button class="ghost" id="filterBtn">Show only quiet</button>
+      </span>
+    </div>
+    <div class="cols">
+      <div class="main">
+        <table>
+          <thead><tr><th>Responder</th><th>Area</th><th>Availability</th><th>Pings / wk</th><th>Status</th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+        <div class="note">Cover names only. Rook holds no link to anyone's identity.</div>
+      </div>
+      <div class="side">
+        <div class="card" id="detail"><div class="empty">Click a responder to see what's happening.<br>Try <b>Meteor Mite</b>.</div></div>
+        <div class="card"><h3>Recent handler actions</h3><ul class="log" id="log"><li style="color:#5b6674">Nothing yet. Actions you take here are recorded.</li></ul></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CALLOUTS -->
+  <section id="tab-callouts" class="hide">
+    <div class="card">
+      <h2>Live callouts</h2><div class="sub">Where a quiet responder's callouts end up. Give Meteor Mite a fresh start on the Responders tab, then come back.</div>
+      <div id="newCallout"></div>
+      <div class="callout"><span><b>#41107</b> &middot; Eastgate &middot; structural-entry</span><span>Pinged: The Gale <span class="pill busy">taken</span></span></div>
+      <div class="callout"><span><b>#41106</b> &middot; Eastgate &middot; hazmat-tolerant</span><span>Pinged: The Gale <span class="pill busy">taken</span></span></div>
+      <div class="callout"><span><b>#41105</b> &middot; Old Town &middot; de-escalation</span><span>Pinged: Nightwell &rarr; Captain Vantage <span class="pill ok">taken</span></span></div>
+      <div class="callout"><span><b>#41104</b> &middot; Eastgate &middot; flight</span><span>Pinged: The Gale <span class="pill quiet">missed</span> &rarr; Meteor Mite <span class="pill quiet">missed</span></span></div>
+      <div class="note">Meteor Mite is usually first in Eastgate. The Gale picks up most of it.</div>
+    </div>
+  </section>
+
+  <!-- COVERAGE -->
+  <section id="tab-coverage" class="hide">
+    <div class="card">
+      <h2>Coverage by area</h2><div class="sub">16 responders, 15 areas. 14 areas have one usual responder. Eastgate is the busiest (about 13% of callouts) and has two.</div>
+      <table>
+        <thead><tr><th>Area</th><th>Responder</th><th>Handler</th><th>Pings/wk before 4.2</th><th>Pings/wk since</th><th>Taken since</th></tr></thead>
+        <tbody>
+          <tr><td>Eastgate</td><td><b>Meteor Mite</b></td><td>Kip</td><td>11.5</td><td>3.8</td><td>3 of 14</td></tr>
+          <tr><td>Eastgate</td><td><b>The Gale</b></td><td>Kip</td><td>13.4</td><td>18.6</td><td>48 of 69</td></tr>
+          <tr><td>Foundry Row</td><td>Sgt. Bulwark</td><td>Halloran</td><td>9.3</td><td>10.5</td><td>26 of 39</td></tr>
+          <tr><td>Greenway</td><td>The Drift</td><td>Beatrice Calloway</td><td>6.4</td><td>7.5</td><td>18 of 28</td></tr>
+          <tr><td>Harborside</td><td><b>The Undertow</b></td><td>Desmond Okafor</td><td>12.3</td><td>3.8</td><td>3 of 14</td></tr>
+          <tr><td>Hillcrest</td><td>Captain Vantage</td><td>Mr. Ambrose</td><td>12.5</td><td>15.9</td><td>42 of 59</td></tr>
+          <tr><td>Kingsbridge</td><td>Sgt. Falkirk</td><td>Owen Bramwell</td><td>10.3</td><td>14.0</td><td>36 of 52</td></tr>
+          <tr><td>Lakeshore</td><td>The Longcast</td><td>Graham Petrov</td><td>7.4</td><td>8.6</td><td>21 of 32</td></tr>
+          <tr><td>Midtown</td><td>Nightwell</td><td>Marjorie Sung</td><td>15.6</td><td>18.9</td><td>47 of 70</td></tr>
+          <tr><td>Mill District</td><td>Cindermark</td><td>Farid Haddad</td><td>9.3</td><td>11.3</td><td>29 of 42</td></tr>
+          <tr><td>Northfield</td><td>Corporal Ashgrove</td><td>Yusuf Demir</td><td>10.3</td><td>7.8</td><td>19 of 29</td></tr>
+          <tr><td>Old Town</td><td><b>Vesper</b></td><td>Aunt Dot</td><td>14.1</td><td>4.6</td><td>5 of 17</td></tr>
+          <tr><td>Riverside</td><td>Ironvale</td><td>Teresa Alvarez</td><td>8.4</td><td>10.5</td><td>26 of 39</td></tr>
+          <tr><td>Southport</td><td>Stormwrack</td><td>Renata Kovač</td><td>13.4</td><td>17.0</td><td>45 of 63</td></tr>
+          <tr><td>Uptown</td><td><b>Farlight</b></td><td>Linda Pruitt</td><td>12.3</td><td>3.0</td><td>2 of 11</td></tr>
+          <tr><td>Westbury</td><td>Halfmoon</td><td>Simone Fischer</td><td>11.3</td><td>8.9</td><td>21 of 33</td></tr>
+        </tbody>
+      </table>
+      <div class="note">Real data from the pings table (29 Jun to 6 Sep). Bold = the four quiet responders and The Gale. "Since" = 12 Aug onward. Availability is not in the database, so this shows who covers an area, not who is set to available right now.</div>
+    </div>
+  </section>
+
+  <!-- WEEKLY ALERT -->
+  <section id="tab-alert" class="hide">
+    <div class="card">
+      <h2>Weekly quiet-responder alert</h2>
+      <div class="sub">Goes to Ravi Menon, Marcus Oyelaran and Nadia Hoffmann. Quick fix from the brief: it makes the next case visible. It doesn't change ranking.</div>
+      <div class="box"><b>Week of 24 Aug.</b> Pings per responder fell by more than half against the six weeks before 4.2, while marked available:</div>
+      <table>
+        <thead><tr><th>Responder</th><th>Area</th><th>Before</th><th>Now</th><th>Handler</th></tr></thead>
+        <tbody>
+          <tr><td><b>Vesper</b></td><td>Old Town</td><td>14.1/wk</td><td>4.6/wk</td><td>Aunt Dot</td></tr>
+          <tr><td><b>Meteor Mite</b></td><td>Eastgate</td><td>11.5/wk</td><td>3.8/wk</td><td>Kip</td></tr>
+          <tr><td><b>Farlight</b></td><td>Uptown</td><td>12.3/wk</td><td>3.0/wk</td><td>Linda Pruitt</td></tr>
+          <tr><td><b>The Undertow</b></td><td>Harborside</td><td>12.3/wk</td><td>3.8/wk</td><td>Desmond Okafor</td></tr>
+        </tbody>
+      </table>
+      <p><button id="sendAlert">Send this week's alert</button></p>
+      <div class="note">The threshold ("more than half") is a placeholder. The brief still needs a real definition of "quiet": threshold, window and baseline.</div>
+    </div>
+  </section>
+
+  <!-- THE BRIEF -->
+  <section id="tab-brief" class="hide">
+    <div class="card">
+      <h2>When a responder goes quiet, someone notices and there is a way back</h2>
+      <div class="sub">The brief for Helen, mapped to this prototype.</div>
+      <h3>Who it's for</h3>
+      <div class="box">A responder who has gone quiet, and the handler who looks after them. Meteor Mite and Kip are the example on the Responders tab. Farlight went from about 12 pings a week to none by 24 Aug.</div>
+      <h3>What changes for them</h3>
+      <div class="box"><b>Responder:</b> offered callouts again; a fresh start isn't judged on the old record. <button class="ghost" data-go="responders">See it</button><br>
+      <b>Handler:</b> a banner and "Gone quiet" status. <button class="ghost" data-go="responders">See it</button><br>
+      <b>Misses fade:</b> use the decay slider on a quiet responder. <button class="ghost" data-go="responders">See it</button><br>
+      <b>Callouts:</b> go back to the usual covering responder. <button class="ghost" data-go="callouts">See it</button></div>
+      <h3>What it deliberately does not do</h3>
+      <div class="box">No revert of 4.2 or change to proximity. No change to the ping wait. No single-number tweak. No guaranteed share of callouts. No identifying anyone: cover names only. No change to how availability is calculated (Supply reads it). No mutual aid. Doesn't answer whether the ranking change was meant to apply to responders who turn jobs down (Wen Li).</div>
+      <h3>Timeline</h3>
+      <div class="box"><b>This week:</b> weekly alert. <button class="ghost" data-go="alert">See it</button><br>
+      <b>Next release (~4.3):</b> handler view with fresh start, and decay.<br>
+      <b>Within a quarter:</b> miss counts less than a refusal; possible minimum pings.<br>
+      <b>Later, with evidence:</b> revisit the ping wait; write down how ping decisions are made.</div>
+      <h3>Not yet checked</h3>
+      <div class="box">Wen Li hasn't confirmed the miss penalty, stored scores, or whether scores reset on restart. Nobody has verified Farlight's (or Meteor Mite's) availability record. No per-ping answer times. The handler evidence is thin: 4 interviews, no responders. Data ends 6 Sep. The decay slider and the five-ping simulation are illustrations, not real routing.</div>
+    </div>
+  </section>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const WK=["13 Jul","20 Jul","3 Aug","10 Aug","17 Aug","24 Aug"];
+const R=[
+ {n:"Meteor Mite",a:"Eastgate",av:"Available",w:[12,11,12,11,4,4],q:true,since:"17 Aug",h:"Kip",stat:"Before 4.2: 70&ndash;86 pings. Since: 11&ndash;17, and only 18&ndash;29% taken. Eastgate's other responder, The Gale (also yours), has been picking up the rest."},
+ {n:"Vesper",a:"Old Town",av:"Available",w:[14,14,15,14,5,4],q:true,since:"17 Aug",h:"Aunt Dot"},
+ {n:"Farlight",a:"Uptown",av:"Available",w:[12,12,12,12,6,0],q:true,since:"24 Aug",h:"Linda Pruitt"},
+ {n:"The Undertow",a:"Harborside",av:"Available",w:[12,12,13,12,4,4],q:true,since:"17 Aug",h:"Desmond Okafor"},
+ {n:"The Gale",a:"Eastgate",av:"Available",w:[13,13,14,13,17,19],busy:true,h:"Kip"},
+ {n:"Sgt. Falkirk",a:"Kingsbridge",av:"Available",w:[10,10,11,10,12,14],h:"Owen Bramwell"},
+ {n:"Nightwell",a:"Midtown",av:"Available",w:[15,15,16,15,18,19],h:"Marjorie Sung"},
+ {n:"Sgt. Bulwark",a:"Foundry Row",av:"Available",w:[9,9,10,9,10,11],h:"Halloran"},
+ {n:"The Drift",a:"Greenway",av:"Available",w:[6,6,7,6,7,8],h:"Beatrice Calloway"},
+ {n:"Captain Vantage",a:"Hillcrest",av:"Available",w:[12,12,13,12,16,16],h:"Mr. Ambrose"},
+ {n:"The Longcast",a:"Lakeshore",av:"Available",w:[7,7,8,7,8,9],h:"Graham Petrov"},
+ {n:"Cindermark",a:"Mill District",av:"Available",w:[9,9,10,9,11,11],h:"Farid Haddad"},
+ {n:"Corporal Ashgrove",a:"Northfield",av:"Available",w:[10,10,11,10,8,8],h:"Yusuf Demir"},
+ {n:"Ironvale",a:"Riverside",av:"Available",w:[8,8,9,8,10,11],h:"Teresa Alvarez"},
+ {n:"Stormwrack",a:"Southport",av:"Available",w:[13,13,14,13,17,17],h:"Renata Kova&#269;"},
+ {n:"Halfmoon",a:"Westbury",av:"Available",w:[11,11,12,11,9,9],h:"Simone Fischer"}
+];
+const AREAS=[...new Set(R.map(r=>r.a))].sort();
+let areaSel='';
+let sel=null,onlyQuiet=false,state={}; // state[name] = 'fresh' | 'away'
+const $=id=>document.getElementById(id);
+function toast(t){const e=$('toast');e.textContent=t;e.classList.add('on');setTimeout(()=>e.classList.remove('on'),2600)}
+function isQuiet(r){return r.q&&!state[r.n]}
+function pill(r){
+  if(state[r.n]==='fresh')return '<span class="pill fresh">Fresh start queued</span>';
+  if(state[r.n]==='away'||r.av==='Away')return '<span class="pill away">Away</span>';
+  if(r.q)return '<span class="pill quiet">Gone quiet</span>';
+  if(r.busy)return '<span class="pill busy">Busier than usual</span>';
+  return '<span class="pill ok">Normal</span>';
+}
+function rows(){
+  const tb=$('rows');tb.innerHTML='';
+  const list=R.filter(r=>(!onlyQuiet||r.q)&&(!areaSel||r.a===areaSel));
+  if(!list.length){tb.innerHTML='<tr><td colspan="5" style="color:#5b6674;text-align:center;padding:24px">No quiet responders in this area.</td></tr>';return}
+  list.forEach(r=>{
+    const av=state[r.n]==='away'?'Away':r.av;
+    const tr=document.createElement('tr');tr.className='row'+(sel===r.n?' sel':'');
+    tr.innerHTML=`<td><b>${r.n}</b></td><td>${r.a}</td><td>${av}</td><td>${r.w[3]} &rarr; ${r.w[5]}</td><td>${pill(r)}</td>`;
+    tr.onclick=()=>{sel=r.n;rows();detail(r)};
+    tb.appendChild(tr);
+  });
+}
+function detail(r){
+  const max=Math.max(...r.w,1);
+  const bars=r.w.map((v,i)=>`<div class="bar ${i>=4?'post':''}" style="height:${Math.max(v/max*88,3)}px">${v}</div>`).join('');
+  let body='';
+  if(isQuiet(r)){
+    body=`<div class="box"><b>${r.n} has gone quiet since ${r.since}.</b> Marked available, but not being offered callouts. This comes from how Dispatch ranks responders, not from ${r.n} being away.</div>
+    ${r.stat?`<div class="box">${r.stat}</div>`:''}
+    <div class="box">Why: each missed ping lowers their place in the order, and nothing lifts it unless they're pinged. After the ping wait went from 90 to 60 seconds, a run of misses can leave a responder stuck.</div>
+    <div class="box"><b>How it recovers (preview of decay).</b> Weeks of fading: <b id="dw">0</b>
+      <input type="range" id="decay" min="0" max="8" value="0" style="width:100%">
+      <div style="background:#d6dbe3;border-radius:4px;height:14px;position:relative"><div id="scorebar" style="height:14px;border-radius:4px;background:#e58a82;width:10%"></div><div style="position:absolute;left:50%;top:-3px;height:20px;border-left:2px dashed #1d2530"></div></div>
+      <div class="note" style="margin-top:4px">Score <span id="sc">0.10</span> &middot; dashed line = starting score 0.5. Illustrative: today a miss costs 0.12, a yes earns 0.08, and nothing fades.</div></div>
+    <button id="fresh">Give a fresh start</button> <button class="ghost" id="away">Mark away instead</button>
+    <div class="note">A fresh start means their next few pings aren't judged on the old record. It doesn't guarantee callouts.</div>`;
+  } else if(state[r.n]==='fresh'){
+    body=`<div class="box good"><b>Fresh start queued.</b> Watch the next five pings:</div>
+    <div class="steps" id="steps">${[1,2,3,4,5].map(i=>`<div class="step ${i===1?'live':''}" data-i="${i}">Ping ${i}<br>&mdash;</div>`).join('')}</div>
+    <button class="ghost" id="sim">Simulate next ping</button>
+    <div class="note" id="simnote">Each ping is simulated. In the real thing you'd see the actual outcome.</div>`;
+  } else if(state[r.n]==='away'||r.av==='Away'){
+    body=`<div class="box">Marked away. Not expected to get callouts, so this isn't flagged as quiet.</div>`;
+  } else if(r.busy){
+    body=`<div class="box">Taking more than usual since 12 Aug, covering for Meteor Mite in Eastgate. If Meteor Mite gets a fresh start, this should ease.</div>`;
+  } else {
+    body=`<div class="box">Nothing unusual. Ping volume is steady.</div>`;
+  }
+  $('detail').innerHTML=`<h2>${r.n}</h2><div class="sub">${r.a} &middot; handler: ${r.h}</div>
+   <b>Pings per week</b> <span class="note" style="margin:0">(red = after 4.2 on 12 Aug)</span>
+   <div class="bars">${bars}</div><div class="lbls">${WK.map(x=>`<span>${x}</span>`).join('')}</div>${body}
+   <div class="note">Illustrative numbers. Farlight's ~12/wk falling to 0 by 24 Aug is from the data; other weeks are invented.</div>`;
+  const dc=$('decay');if(dc)dc.oninput=()=>{const w=+dc.value;const s=0.1+(0.5-0.1)*(1-Math.pow(0.7,w));$('dw').textContent=w;$('sc').textContent=s.toFixed(2);$('scorebar').style.width=(s*100)+'%'};
+  const f=$('fresh');if(f)f.onclick=()=>{
+    if(!confirm('Give '+r.n+' a fresh start?\n\nTheir next few pings will not be judged on the old record. This action is recorded.'))return;
+    state[r.n]='fresh';logit(r.n,'fresh start');rows();detail(r);banner();toast(r.n+': fresh start queued');
+  };
+  const a=$('away');if(a)a.onclick=()=>{state[r.n]='away';logit(r.n,'marked away');rows();detail(r);banner();toast(r.n+' marked away')};
+  const s=$('sim');if(s){let n=0;s.onclick=()=>{
+    if(n>=5)return;n++;
+    const taken=[true,false,true,true,true][n-1];
+    const el=document.querySelector(`.step[data-i="${n}"]`);
+    el.className='step '+(taken?'won':'');el.innerHTML=`Ping ${n}<br>${taken?'taken':'missed'}`;
+    const nx=document.querySelector(`.step[data-i="${n+1}"]`);if(nx)nx.classList.add('live');
+    if(n===5){s.disabled=true;$('simnote').textContent='4 of 5 taken. In a real run this is where the responder\'s ranking would have recovered.'}
+  }}
+}
+function logit(n,act){
+  const ul=$('log');if(ul.firstElementChild&&ul.firstElementChild.style.color)ul.innerHTML='';
+  const li=document.createElement('li');li.innerHTML=`<b>Kip</b> &middot; ${n}: ${act} <span style="color:#5b6674">&middot; just now</span>`;ul.prepend(li);
+}
+function banner(){
+  const n=R.filter(isQuiet).length;
+  $('qcount').textContent=n+(n===1?" of your area's responders":" of your area's responders");
+  $('banner').style.display=n?'flex':'none';
+  $('navBadge').textContent=n;$('navBadge').style.display=n?'inline-block':'none';
+}
+AREAS.forEach(a=>{const o=document.createElement('option');o.value=a;o.textContent=a;$('areaSel').appendChild(o)});
+$('areaSel').onchange=e=>{areaSel=e.target.value;rows();const first=R.find(r=>(!onlyQuiet||r.q)&&(!areaSel||r.a===areaSel));if(areaSel&&first){sel=first.n;rows();detail(first)}};
+$('filterBtn').onclick=e=>{onlyQuiet=!onlyQuiet;e.target.textContent=onlyQuiet?'Show everyone':'Show only quiet';rows()};
+document.querySelectorAll('.top a').forEach(a=>a.onclick=()=>{
+  document.querySelectorAll('.top a').forEach(x=>x.classList.remove('on'));a.classList.add('on');
+  go(a.dataset.tab);
+});
+function go(tab){
+  document.querySelectorAll('.top a').forEach(x=>x.classList.toggle('on',x.dataset.tab===tab));
+  ['callouts','responders','coverage','alert','brief'].forEach(t=>$('tab-'+t).classList.toggle('hide',t!==tab));
+  if(tab==='callouts')$('newCallout').innerHTML=state['Meteor Mite']==='fresh'
+    ?'<div class="callout" style="background:#e8f4ea"><span><b>#41108</b> &middot; Eastgate &middot; flight</span><span>Pinged: Meteor Mite first <span class="pill fresh">usual responder</span> &rarr; The Gale as back-up</span></div>':'';
+}
+document.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>go(b.dataset.go));
+$('sendAlert').onclick=e=>{e.target.disabled=true;e.target.textContent='Sent to Ravi, Marcus and Nadia';toast('Weekly alert sent')};
+sel="Meteor Mite";rows();detail(R[0]);banner();
+</script>
+</body>
+</html>
